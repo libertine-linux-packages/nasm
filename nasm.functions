@@ -1,0 +1,92 @@
+# This file is part of libertine linux's package nasm. It is subject to the license terms in the COPYRIGHT file found in the top-level directory of this distribution and at https://raw.githubusercontent.com/libertine-linux-packages/nasm/master/COPYRIGHT. No part of libertine linux's package nasm, including this file, may be copied, modified, propagated, or distributed except according to the terms contained in the COPYRIGHT file.
+# Copyright © 2016 The developers of libertine linux's package nasm. See the COPYRIGHT file in the top-level directory of this distribution and at https://raw.githubusercontent.com/libertine-linux-packages/nasm/master/COPYRIGHT.
+
+
+variant=upstream
+
+depends build_ccache
+build_needs ccache
+
+depends build_gnumake
+build_needs make
+
+depends build_perl
+build_needs perl
+
+depends build_gnuconfig
+
+depends build_autoconf
+build_needs autoconf autoheader autom4te autoreconf autoscan autoupdate ifnames
+
+depends build_automake
+build_needs automake aclocal
+
+depends build_gnum4
+build_needs m4
+
+depends build_busybox
+depends build_netbsd_src_sleep
+build_needs sh env expr ls sleep install
+
+case "$package" in
+	
+	build_file)
+	
+		build_provides nasm
+
+		depends build_musl_cross_make_build
+		build_needs "$libertine_build"-cc "$libertine_build"-gcc "$libertine_build"-ar "$libertine_build"-ld "$libertine_build"-ranlib
+		
+		libertine_compile_build_nasm()
+		{
+			_libertine_compile_nasm_internal false "$(libertine_public_outputBuildSysrootPath)"
+		}
+	
+	;;
+	
+	nasm)
+
+		depends build_musl_cross_make_host
+		build_needs "$libertine_host"-cc "$libertine_host"-gcc "$libertine_host"-ar "$libertine_host"-ld "$libertine_host"-ranlib "$libertine_host"-strip
+		
+		depends build_paxctl
+		build_needs paxctl
+				
+		libertine_compile_nasm()
+		{
+			_libertine_compile_nasm_internal true "$(libertine_public_outputBuildSysrootPath)"
+		}
+	;;
+	
+esac
+
+
+build_needs mkdir cp ln
+_libertine_compile_nasm_internal()
+{
+	local shouldStrip="$1"
+	local outputFolderPath="$2"
+	
+	pushd "$(libertine_public_sourcePath)"
+		
+		autoreconf --install --force --verbose
+		
+		libertine_public_autoconf_modernAutoconfConfigure
+
+		libertine_public_ccache_createSymlinks
+		
+		libertine_public_make
+		libertine_public_make DESTDIR="$outputFolderPath" install
+	
+	popd
+	
+	if $shouldStrip; then
+		libertine_public_installAndStripBinaryIn bin nasm
+	else
+		mkdir -m 0755 -p "$outputFolderPath"/usr
+		ln -s .."$(libertine_public_outputBuildSysrootPath)"/usr/bin "$outputFolderPath"/usr/bin
+		ln -s .."$(libertine_public_outputBuildSysrootPath)"/usr/lib "$outputFolderPath"/usr/lib
+		ln -s .."$(libertine_public_outputBuildSysrootPath)"/usr/share "$outputFolderPath"/usr/share
+		ln -s .."$(libertine_public_outputBuildSysrootPath)"/usr/include "$outputFolderPath"/usr/include
+	fi
+}
